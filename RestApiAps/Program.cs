@@ -5,7 +5,7 @@ using System.Security.Cryptography.X509Certificates;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ===> Lê o certificado a partir da variável de ambiente CERTIFICADO_PFX_BASE64
+// ===> Lê o certificado a partir das variáveis de ambiente (opcional)
 var base64Cert = Environment.GetEnvironmentVariable("CERTIFICADO_PFX_BASE64");
 var certPassword = Environment.GetEnvironmentVariable("CERTIFICADO_PFX_SENHA") ?? string.Empty;
 
@@ -13,32 +13,39 @@ X509Certificate2? certificate = null;
 
 if (!string.IsNullOrEmpty(base64Cert))
 {
-    var certBytes = Convert.FromBase64String(base64Cert);
-    certificate = new X509Certificate2(certBytes, certPassword,
-        X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable);
+    try
+    {
+        var certBytes = Convert.FromBase64String(base64Cert);
+        certificate = new X509Certificate2(certBytes, certPassword,
+            X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erro ao carregar o certificado: {ex.Message}");
+    }
 }
 
-// ===> Lê a porta do ambiente Render (obrigatório lá)
+// ===> Porta dinâmica (Render.com) ou fallback local
 var portEnv = Environment.GetEnvironmentVariable("PORT");
-var port = string.IsNullOrEmpty(portEnv) ? 5000 : int.Parse(portEnv); // fallback local
+var port = string.IsNullOrEmpty(portEnv) ? 5000 : int.Parse(portEnv);
 
-// Configuração do Kestrel
-builder.WebHost.ConfigureKestrel(serverOptions =>
+// ===> Configura o Kestrel
+builder.WebHost.ConfigureKestrel(options =>
 {
     if (certificate != null)
     {
-        serverOptions.Listen(IPAddress.Any, port, listenOptions =>
+        options.Listen(IPAddress.Any, port, listenOptions =>
         {
             listenOptions.UseHttps(certificate);
         });
     }
     else
     {
-        serverOptions.Listen(IPAddress.Any, port);
+        options.Listen(IPAddress.Any, port); // HTTP se sem certificado
     }
 });
 
-// Serviços
+// ===> Serviços
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -52,7 +59,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Banco de dados
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
@@ -72,4 +78,5 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
+
 app.Run();

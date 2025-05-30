@@ -2,11 +2,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copiar apenas os arquivos de projeto primeiro (melhor cache)
-COPY *.csproj ./ 
+# Copiar apenas os arquivos de projeto primeiro (melhora cache de build)
+COPY *.csproj ./
 RUN dotnet restore
 
-# Copiar o restante e publicar
+# Copiar o restante dos arquivos e compilar
 COPY . ./
 RUN dotnet publish -c Release -o /app/out
 
@@ -14,11 +14,14 @@ RUN dotnet publish -c Release -o /app/out
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
-# Copia o build final
+# Copiar os arquivos da publicação
 COPY --from=build /app/out ./
 
-# Porta exposta apenas para documentação, Render ignora isso
-EXPOSE 80
-EXPOSE 443
+# Configura a URL de escuta (obrigatório para Render.com)
+ENV ASPNETCORE_URLS=http://+:8080
 
+# Expose é apenas informativo no Render, mas bom para testes locais
+EXPOSE 8080
+
+# Entrypoint padrão
 ENTRYPOINT ["dotnet", "RestApiAps.dll"]
