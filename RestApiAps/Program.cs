@@ -1,47 +1,17 @@
 using Microsoft.EntityFrameworkCore;
 using RestApiAps.Data;
 using System.Net;
-using System.Security.Cryptography.X509Certificates;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ===> Certificado opcional via variáveis de ambiente
-var base64Cert = Environment.GetEnvironmentVariable("CERTIFICADO_PFX_BASE64");
-var certPassword = Environment.GetEnvironmentVariable("CERTIFICADO_PFX_SENHA") ?? string.Empty;
-
-X509Certificate2? certificate = null;
-
-if (!string.IsNullOrEmpty(base64Cert))
-{
-    try
-    {
-        var certBytes = Convert.FromBase64String(base64Cert);
-        certificate = new X509Certificate2(certBytes, certPassword,
-            X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable);
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Erro ao carregar o certificado: {ex.Message}");
-    }
-}
-
+// Pega a porta do ambiente (Render define PORT)
 var portEnv = Environment.GetEnvironmentVariable("PORT");
 var port = string.IsNullOrEmpty(portEnv) ? 5000 : int.Parse(portEnv);
 
-// Configuração do Kestrel
+// Configuração do Kestrel para escutar em HTTP na porta do ambiente
 builder.WebHost.ConfigureKestrel(options =>
 {
-    if (certificate != null)
-    {
-        options.Listen(IPAddress.Any, port, listenOptions =>
-        {
-            listenOptions.UseHttps(certificate);
-        });
-    }
-    else
-    {
-        options.Listen(IPAddress.Any, port); // Apenas HTTP
-    }
+    options.Listen(IPAddress.Any, port); // Apenas HTTP
 });
 
 // Serviços
@@ -69,7 +39,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 
