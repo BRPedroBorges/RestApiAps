@@ -18,20 +18,24 @@ if (!string.IsNullOrEmpty(base64Cert))
         X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable);
 }
 
+// ===> Lê a porta do ambiente Render (obrigatório lá)
+var portEnv = Environment.GetEnvironmentVariable("PORT");
+var port = string.IsNullOrEmpty(portEnv) ? 5000 : int.Parse(portEnv); // fallback local
+
 // Configuração do Kestrel
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
     if (certificate != null)
     {
-        // HTTPS com certificado carregado da variável de ambiente
-        serverOptions.Listen(IPAddress.Parse("192.168.0.10"), 7188, listenOptions =>
+        serverOptions.Listen(IPAddress.Any, port, listenOptions =>
         {
             listenOptions.UseHttps(certificate);
         });
     }
-
-    // HTTP - apenas para testes locais
-    serverOptions.Listen(IPAddress.Parse("192.168.0.10"), 5145);
+    else
+    {
+        serverOptions.Listen(IPAddress.Any, port);
+    }
 });
 
 // Serviços
