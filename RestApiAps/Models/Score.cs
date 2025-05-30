@@ -10,7 +10,7 @@ namespace RestApiAps.Models
         [Key]
         public int Id { get; set; }
 
-        public string Nome { get; set; }
+        public string? Nome { get; set; }
 
         public int Pontuacao { get; set; }
 
