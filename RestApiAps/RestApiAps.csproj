@@ -7,13 +7,9 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<None Remove="certificado.pfx" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Content Include="certificado.pfx">
+		<None Update="certificado.pfx">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
-		</Content>
+		</None>
 	</ItemGroup>
 
 	<ItemGroup>
