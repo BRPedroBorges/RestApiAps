@@ -23,10 +23,16 @@ namespace RestApiAps.Controllers
             if (score == null)
                 return BadRequest("Objeto inválido.");
 
-            _context.Scores.Add(score);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Pontuação salva com sucesso!" });
+            try
+            {
+                _context.Scores.Add(score);
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "Pontuação salva com sucesso!" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro ao salvar: {ex.Message}");
+            }
         }
 
         [HttpGet]

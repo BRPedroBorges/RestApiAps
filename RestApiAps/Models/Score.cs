@@ -14,6 +14,6 @@ namespace RestApiAps.Models
 
         public int Pontuacao { get; set; }
 
-        public DateTime DataRegistro { get; set; } = DateTime.Now;
+        public DateTime DataRegistro { get; set; } = DateTime.UtcNow;
     }
 }

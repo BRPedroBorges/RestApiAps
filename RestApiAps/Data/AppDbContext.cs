@@ -11,7 +11,6 @@ namespace RestApiAps.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Mapeia a entidade Score para a tabela "Pontuacoes"
             modelBuilder.Entity<Score>().ToTable("Pontuacoes");
         }
     }

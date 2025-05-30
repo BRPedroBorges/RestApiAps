@@ -1,59 +1,63 @@
-using RestApiAps.Data;
 using Microsoft.EntityFrameworkCore;
+using RestApiAps.Data;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ===> Serviços
+// ===> Certificado opcional via variáveis de ambiente
+var base64Cert = Environment.GetEnvironmentVariable("CERTIFICADO_PFX_BASE64");
+var certPassword = Environment.GetEnvironmentVariable("CERTIFICADO_PFX_SENHA") ?? string.Empty;
+
+X509Certificate2? certificate = null;
+
+if (!string.IsNullOrEmpty(base64Cert))
+{
+    try
+    {
+        var certBytes = Convert.FromBase64String(base64Cert);
+        certificate = new X509Certificate2(certBytes, certPassword,
+            X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erro ao carregar o certificado: {ex.Message}");
+    }
+}
+
+var portEnv = Environment.GetEnvironmentVariable("PORT");
+var port = string.IsNullOrEmpty(portEnv) ? 5000 : int.Parse(portEnv);
+
+// Configuração do Kestrel
+builder.WebHost.ConfigureKestrel(options =>
+{
+    if (certificate != null)
+    {
+        options.Listen(IPAddress.Any, port, listenOptions =>
+        {
+            listenOptions.UseHttps(certificate);
+        });
+    }
+    else
+    {
+        options.Listen(IPAddress.Any, port); // Apenas HTTP
+    }
+});
+
+// Serviços
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowAll", builder =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
     });
 });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions => sqlOptions.EnableRetryOnFailure()
-    ));
-
-// ===> Configuração do Kestrel
-builder.WebHost.ConfigureKestrel(options =>
-{
-    // Porta obrigatória para Render.com
-    options.Listen(IPAddress.Any, 8080); // HTTP
-
-    // HTTPS opcional se certificado estiver presente
-    var base64Cert = Environment.GetEnvironmentVariable("CERTIFICADO_PFX_BASE64");
-    var certPassword = Environment.GetEnvironmentVariable("CERTIFICADO_PFX_SENHA") ?? string.Empty;
-
-    if (!string.IsNullOrEmpty(base64Cert))
-    {
-        try
-        {
-            var certBytes = Convert.FromBase64String(base64Cert);
-            var certificate = new X509Certificate2(certBytes, certPassword,
-                X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable);
-
-            options.Listen(IPAddress.Any, 8443, listenOptions =>
-            {
-                listenOptions.UseHttps(certificate);
-            });
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Erro ao carregar certificado: {ex.Message}");
-        }
-    }
-});
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
