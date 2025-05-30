@@ -1,44 +1,52 @@
 using RestApiAps.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuração do Kestrel para aceitar conexões externas via HTTPS e HTTP
+// ===> Lê o certificado a partir da variável de ambiente CERTIFICADO_PFX_BASE64
+var base64Cert = Environment.GetEnvironmentVariable("CERTIFICADO_PFX_BASE64");
+var certPassword = Environment.GetEnvironmentVariable("CERTIFICADO_PFX_SENHA") ?? string.Empty;
+
+X509Certificate2? certificate = null;
+
+if (!string.IsNullOrEmpty(base64Cert))
+{
+    var certBytes = Convert.FromBase64String(base64Cert);
+    certificate = new X509Certificate2(certBytes, certPassword,
+        X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable);
+}
+
+// Configuração do Kestrel
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
-    // HTTPS com certificado (substitua o caminho e a senha abaixo)
-    serverOptions.Listen(IPAddress.Parse("192.168.0.10"), 7188, listenOptions =>
+    if (certificate != null)
     {
-        listenOptions.UseHttps(@"C:\Users\Pedro Borges\source\repos\RestApiAps\certificado.pfx", "suaSenha");
-    });
+        // HTTPS com certificado carregado da variável de ambiente
+        serverOptions.Listen(IPAddress.Parse("192.168.0.10"), 7188, listenOptions =>
+        {
+            listenOptions.UseHttps(certificate);
+        });
+    }
 
-    // HTTP - usado apenas para testes locais com Unity
+    // HTTP - apenas para testes locais
     serverOptions.Listen(IPAddress.Parse("192.168.0.10"), 5145);
 });
-
-
 
 // Serviços
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddCors();
-
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", builder =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        builder.AllowAnyOrigin()
-               .AllowAnyMethod()
-               .AllowAnyHeader();
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
     });
 });
-
-
-
-
-
 
 // Banco de dados
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -48,9 +56,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     ));
 
 var app = builder.Build();
+
 app.UseCors("AllowAll");
 
-// Pipeline HTTP
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -58,15 +66,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-
-app.UseCors(x => x
-    .AllowAnyOrigin()
-    .AllowAnyMethod()
-    .AllowAnyHeader());
-
-
-
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
