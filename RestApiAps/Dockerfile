@@ -1,14 +1,12 @@
-FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
+FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 WORKDIR /app
-EXPOSE 80
 
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
-WORKDIR /src
-COPY . .
-RUN dotnet restore
-RUN dotnet publish -c Release -o /app/publish
+COPY . ./
+RUN dotnet publish -c Release -o out
 
-FROM base AS final
+Etapa de runtime,
+FROM mcr.microsoft.com/dotnet/aspnet:7.0
 WORKDIR /app
-COPY --from=build /app/publish .
-ENTRYPOINT ["dotnet", "RestApiAps.dll"]
+COPY --from=build /app/out .
+
+ENTRYPOINT ["dotnet",  "RestApiAps.dll"]
